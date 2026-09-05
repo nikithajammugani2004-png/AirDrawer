@@ -351,11 +351,59 @@ input:checked + .slider:before {
     color: #fff;
 }
 
+/* Responsive adjustments for tablets and smaller laptops */
 @media (max-width: 1024px) {
     .main-container {
         flex-direction: column;
+        padding: 20px;
+        gap: 20px;
     }
+
+    .feed-container {
+        min-height: 400px;
+        width: 100%;
+    }
+
     .controls-panel {
         width: 100%;
+    }
+}
+
+/* Responsive adjustments for mobile screens */
+@media (max-width: 640px) {
+    .app-header {
+        padding: 12px 16px;
+    }
+
+    .brand h1 {
+        font-size: 16px;
+    }
+
+    .status-pill {
+        padding: 4px 10px;
+        font-size: 12px;
+    }
+
+    .main-container {
+        padding: 12px;
+        gap: 16px;
+    }
+
+    .feed-container {
+        min-height: 260px;
+        max-height: 50vh;
+    }
+
+    .controls-panel {
+        padding: 16px;
+        gap: 18px;
+    }
+
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .btn-danger {
+        grid-column: span 1;
     }
 }
