@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Gesture Paint Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body>
+
+    <header class="app-header">
+        <div class="header-content">
+            <div class="brand">
+                <div class="brand-icon">✨</div>
+                <h1>Gesture Canvas <span>Studio</span></h1>
+            </div>
+            <div class="status-pill">
+                <span class="status-dot"></span>
+                <span class="status-label">Mode:</span>
+                <span id="mode-text" class="status-value">Initializing...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="feed-container">
+            <div class="feed-wrapper">
+                <img src="/video_feed" alt="Live Gesture Video Stream">
+            </div>
+        </div>
+
+        <aside class="controls-panel">
+            <div class="panel-section">
+                <h2 class="section-title">Brush Settings</h2>
+                
+                <div class="control-group">
+                    <label for="colorPicker">Brush Color</label>
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="colorPicker" value="#ff007f">
+                        <span class="color-preview" id="colorPreview"></span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-with-value">
+                        <label for="sizeSlider">Thickness</label>
+                        <span id="sizeValue" class="slider-value">5px</span>
+                    </div>
+                    <input type="range" id="sizeSlider" min="2" max="50" value="5">
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2 class="section-title">Display Toggles</h2>
+                
+                <div class="toggle-group">
+                    <label for="camToggle">Camera Stream</label>
+                    <label class="switch">
+                        <input type="checkbox" id="camToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-group">
+                    <label for="skeletonToggle">Hand Skeleton</label>
+                    <label class="switch">
+                        <input type="checkbox" id="skeletonToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-group">
+                    <label for="isolateHandToggle">Isolate Hand Only</label>
+                    <label class="switch">
+                        <input type="checkbox" id="isolateHandToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="panel-section actions-section">
+                <div class="action-grid">
+                    <button class="btn btn-secondary" onclick="sendAction('undo')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+                        Undo
+                    </button>
+                    <button class="btn btn-secondary" onclick="sendAction('redo')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
+                        Redo
+                    </button>
+                    <button class="btn btn-danger" onclick="sendAction('clear')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Clear Canvas
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        const colorPicker = document.getElementById('colorPicker');
+        const colorPreview = document.getElementById('colorPreview');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeValue = document.getElementById('sizeValue');
+
+        function updateColorPreview() {
+            if (colorPreview) colorPreview.style.backgroundColor = colorPicker.value;
+        }
+
+        function updateConfig() {
+            updateColorPreview();
+            if (sizeValue) sizeValue.innerText = sizeSlider.value + 'px';
+
+            const payload = {
+                color: colorPicker.value,
+                size: sizeSlider.value,
+                show_camera: document.getElementById('camToggle').checked,
+                show_skeleton: document.getElementById('skeletonToggle').checked,
+                isolate_hand: document.getElementById('isolateHandToggle').checked
+            };
+
+            fetch('/set_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        function sendAction(actionName) {
+            fetch('/set_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: actionName })
+            });
+        }
+
+        colorPicker.addEventListener('input', updateConfig);
+        sizeSlider.addEventListener('input', updateConfig);
+        document.getElementById('camToggle').addEventListener('change', updateConfig);
+        document.getElementById('skeletonToggle').addEventListener('change', updateConfig);
+        document.getElementById('isolateHandToggle').addEventListener('change', updateConfig);
+
+        updateColorPreview();
+
+        setInterval(() => {
+            fetch('/get_mode')
+                .then(res => res.json())
+                .then(data => {
+                    const modeText = document.getElementById('mode-text');
+                    if (modeText) modeText.innerText = data.mode;
+                })
+                .catch(() => {});
+        }, 300);
+    </script>
+</body>
+</html>
