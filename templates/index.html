@@ -7,7 +7,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- MediaPipe scripts for client-side tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
 <body>
 
     <header class="app-header">
@@ -19,15 +25,18 @@
             <div class="status-pill">
                 <span class="status-dot"></span>
                 <span class="status-label">Mode:</span>
-                <span id="mode-text" class="status-value">Initializing...</span>
+                <span id="mode-text" class="status-value">Starting camera...</span>
             </div>
         </div>
     </header>
 
     <main class="main-container">
         <div class="feed-container">
-            <div class="feed-wrapper">
-                <img src="/video_feed" alt="Live Gesture Video Stream">
+            <div class="feed-wrapper" style="position: relative; width: 100%; height: 100%;">
+                <!-- Hidden video element capturing the user webcam -->
+                <video id="webcam" playsinline style="display: none;"></video>
+                <!-- Render output canvas -->
+                <canvas id="output_canvas" style="width: 100%; height: 100%; object-fit: contain;"></canvas>
             </div>
         </div>
 
@@ -38,8 +47,8 @@
                 <div class="control-group">
                     <label for="colorPicker">Brush Color</label>
                     <div class="color-picker-wrapper">
-                        <input type="color" id="colorPicker" value="#ff007f">
-                        <span class="color-preview" id="colorPreview"></span>
+                        <input type="color" id="colorPicker" value="#a855f7">
+                        <span class="color-preview" id="colorPreview" style="background-color: #a855f7;"></span>
                     </div>
                 </div>
 
@@ -70,27 +79,19 @@
                         <span class="slider"></span>
                     </label>
                 </div>
-
-                <div class="toggle-group">
-                    <label for="isolateHandToggle">Isolate Hand Only</label>
-                    <label class="switch">
-                        <input type="checkbox" id="isolateHandToggle">
-                        <span class="slider"></span>
-                    </label>
-                </div>
             </div>
 
             <div class="panel-section actions-section">
                 <div class="action-grid">
-                    <button class="btn btn-secondary" onclick="sendAction('undo')">
+                    <button class="btn btn-secondary" id="undoBtn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
                         Undo
                     </button>
-                    <button class="btn btn-secondary" onclick="sendAction('redo')">
+                    <button class="btn btn-secondary" id="redoBtn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
                         Redo
                     </button>
-                    <button class="btn btn-danger" onclick="sendAction('clear')">
+                    <button class="btn btn-danger" id="clearBtn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         Clear Canvas
                     </button>
@@ -100,59 +101,178 @@
     </main>
 
     <script>
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const modeText = document.getElementById('mode-text');
+
         const colorPicker = document.getElementById('colorPicker');
         const colorPreview = document.getElementById('colorPreview');
         const sizeSlider = document.getElementById('sizeSlider');
         const sizeValue = document.getElementById('sizeValue');
+        const camToggle = document.getElementById('camToggle');
+        const skeletonToggle = document.getElementById('skeletonToggle');
 
-        function updateColorPreview() {
-            if (colorPreview) colorPreview.style.backgroundColor = colorPicker.value;
+        // Drawing memory canvas
+        const drawingCanvas = document.createElement('canvas');
+        const drawingCtx = drawingCanvas.getContext('2d');
+
+        let xp = 0, yp = 0;
+        let currentColor = colorPicker.value;
+        let brushSize = parseInt(sizeSlider.value);
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_HISTORY = 20;
+
+        function saveHistory() {
+            if (undoStack.length >= MAX_HISTORY) undoStack.shift();
+            undoStack.push(drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height));
+            redoStack = [];
         }
 
-        function updateConfig() {
-            updateColorPreview();
-            if (sizeValue) sizeValue.innerText = sizeSlider.value + 'px';
+        colorPicker.addEventListener('input', (e) => {
+            currentColor = e.target.value;
+            colorPreview.style.backgroundColor = currentColor;
+        });
 
-            const payload = {
-                color: colorPicker.value,
-                size: sizeSlider.value,
-                show_camera: document.getElementById('camToggle').checked,
-                show_skeleton: document.getElementById('skeletonToggle').checked,
-                isolate_hand: document.getElementById('isolateHandToggle').checked
-            };
+        sizeSlider.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            sizeValue.innerText = brushSize + 'px';
+        });
 
-            fetch('/set_config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            saveHistory();
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        });
+
+        document.getElementById('undoBtn').addEventListener('click', () => {
+            if (undoStack.length > 0) {
+                redoStack.push(drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height));
+                const prev = undoStack.pop();
+                drawingCtx.putImageData(prev, 0, 0);
+            }
+        });
+
+        document.getElementById('redoBtn').addEventListener('click', () => {
+            if (redoStack.length > 0) {
+                undoStack.push(drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height));
+                const next = redoStack.pop();
+                drawingCtx.putImageData(next, 0, 0);
+            }
+        });
+
+        function onResults(results) {
+            if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
+                canvasElement.width = videoElement.videoWidth || 640;
+                canvasElement.height = videoElement.videoHeight || 480;
+                drawingCanvas.width = canvasElement.width;
+                drawingCanvas.height = canvasElement.height;
+            }
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Mirror preview
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+
+            // Draw video frame if enabled
+            if (camToggle.checked) {
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            } else {
+                canvasCtx.fillStyle = '#000000';
+                canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            }
+
+            let handFound = false;
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                handFound = true;
+                const landmarks = results.multiHandLandmarks[0];
+
+                if (skeletonToggle.checked) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 3 });
+                }
+
+                // Landmark positions
+                const indexUp = landmarks[8].y < landmarks[6].y;
+                const middleUp = landmarks[12].y < landmarks[10].y;
+                const ringUp = landmarks[16].y < landmarks[14].y;
+                const pinkyUp = landmarks[20].y < landmarks[18].y;
+                const thumbUp = landmarks[4].x < landmarks[3].x;
+
+                const x = landmarks[8].x * canvasElement.width;
+                const y = landmarks[8].y * canvasElement.height;
+
+                // Open palm -> Erase
+                if (indexUp && middleUp && ringUp && pinkyUp) {
+                    modeText.innerText = "Eraser";
+                    drawingCtx.save();
+                    drawingCtx.globalCompositeOperation = 'destination-out';
+                    drawingCtx.beginPath();
+                    drawingCtx.arc(x, y, 40, 0, Math.PI * 2);
+                    drawingCtx.fill();
+                    drawingCtx.restore();
+                    xp = 0; yp = 0;
+                }
+                // Index + Thumb -> Hover / Move
+                else if (indexUp && thumbUp && !middleUp && !ringUp && !pinkyUp) {
+                    modeText.innerText = "Hover";
+                    xp = 0; yp = 0;
+                }
+                // Index finger only -> Draw
+                else if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+                    modeText.innerText = "Drawing";
+                    if (xp === 0 && yp === 0) {
+                        saveHistory();
+                        xp = x; yp = y;
+                    }
+                    drawingCtx.strokeStyle = currentColor;
+                    drawingCtx.lineWidth = brushSize;
+                    drawingCtx.lineCap = 'round';
+                    drawingCtx.lineJoin = 'round';
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(xp, yp);
+                    drawingCtx.lineTo(x, y);
+                    drawingCtx.stroke();
+                    xp = x; yp = y;
+                } else {
+                    modeText.innerText = "Idle";
+                    xp = 0; yp = 0;
+                }
+            } else {
+                modeText.innerText = "Searching Hand...";
+                xp = 0; yp = 0;
+            }
+
+            // Overlay the drawing canvas on top of camera
+            canvasCtx.drawImage(drawingCanvas, 0, 0);
+            canvasCtx.restore();
         }
 
-        function sendAction(actionName) {
-            fetch('/set_config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: actionName })
-            });
-        }
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
 
-        colorPicker.addEventListener('input', updateConfig);
-        sizeSlider.addEventListener('input', updateConfig);
-        document.getElementById('camToggle').addEventListener('change', updateConfig);
-        document.getElementById('skeletonToggle').addEventListener('change', updateConfig);
-        document.getElementById('isolateHandToggle').addEventListener('change', updateConfig);
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
 
-        updateColorPreview();
+        hands.onResults(onResults);
 
-        setInterval(() => {
-            fetch('/get_mode')
-                .then(res => res.json())
-                .then(data => {
-                    const modeText = document.getElementById('mode-text');
-                    if (modeText) modeText.innerText = data.mode;
-                })
-                .catch(() => {});
-        }, 300);
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
     </script>
 </body>
 </html>
