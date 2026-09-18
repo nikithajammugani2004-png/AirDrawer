@@ -115,7 +115,7 @@ body {
     flex: 1;
 }
 
-/* Canvas / Video Container */
+/* Video / Canvas Container */
 .feed-container {
     flex: 1;
     display: flex;
@@ -138,14 +138,7 @@ body {
     justify-content: center;
 }
 
-.feed-wrapper img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-}
-
-/* Sidebar Controls */
+/* Controls Panel */
 .controls-panel {
     width: 340px;
     flex-shrink: 0;
