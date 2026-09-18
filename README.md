@@ -1,6 +1,7 @@
 # ✨ AirDrawer — AI Gesture Paint Studio
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success?style=for-the-badge&logo=github)](https://nikithajammugani2004-png.github.io/AirDrawer/)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnikithajammugani2004-png%2FAirDrawer)
 [![HTML5 / Canvas](https://img.shields.io/badge/HTML5-Canvas%20API-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-Hands%20v0.10-orange?style=for-the-badge&logo=google)](https://developers.google.com/mediapipe)
 [![Vanilla JS](https://img.shields.io/badge/JavaScript-ES6%2B-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
@@ -12,11 +13,14 @@
 
 ---
 
-## 🚀 Live Demo (One-Click Instant Launch)
+## 🚀 Live Demo & Deployment
 
-### 👉 [**Open AirDrawer Live App**](https://nikithajammugani2004-png.github.io/AirDrawer/)
+| Platform | Live Link | Status |
+| :--- | :--- | :--- |
+| ⚡ **Vercel** *(Instant Edge CDN)* | [**Deploy on Vercel**](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnikithajammugani2004-png%2FAirDrawer) | 🟢 0s Cold Start |
+| 🌐 **GitHub Pages** | [**airdrawer.github.io**](https://nikithajammugani2004-png.github.io/AirDrawer/) | 🟢 0s Cold Start |
 
-- **⚡ Launch Speed:** Under 1 second (Hosted on GitHub's Global Edge CDN)
+- **⚡ Launch Speed:** Under 1 second
 - **⏱️ Cold Start:** **0 ms** — Never goes to sleep, opens immediately on a single click!
 - **🔒 Privacy:** 100% Client-side. Webcam frames are processed directly on your device and are never sent to any external server.
 
@@ -135,6 +139,29 @@ GitHub Pages hosts your web app permanently for free with zero cold starts:
    👉 **`https://nikithajammugani2004-png.github.io/AirDrawer/`**
 
 *(Alternatively, you can select **Source: GitHub Actions** to use the included automated `.github/workflows/deploy.yml` workflow).*
+
+---
+
+## ⚡ Deploying on Vercel (1-Click Instant Edge Deployment)
+
+Deploying AirDrawer to Vercel takes **under 30 seconds** and delivers global edge speeds with **0 ms cold start**:
+
+### Method 1: 1-Click Dashboard Import (Recommended)
+1. Click this button: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnikithajammugani2004-png%2FAirDrawer)
+   *(Or go to [**vercel.com/new**](https://vercel.com/new) and log in with your GitHub account).*
+2. Under **"Import Git Repository"**, find and click **Import** next to `AirDrawer`.
+3. Keep default settings (Framework Preset: *Other*, Root Directory: `./`).
+4. Click **Deploy**.
+5. Within 10 seconds, your site is live with a fast custom domain (e.g., `https://airdrawer.vercel.app`)!
+
+### Method 2: Via Terminal (Vercel CLI)
+```bash
+# In your terminal, inside the AirDrawer folder:
+npx vercel
+```
+- Log in with GitHub when prompted in the browser.
+- Press **Enter** to accept the default settings.
+- Run `npx vercel --prod` to deploy to production.
 
 ---
 
